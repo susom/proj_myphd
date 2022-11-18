@@ -18,7 +18,9 @@
 	],
 
 	"permissions": [
-        "redcap_save_record"
+        "redcap_save_record",
+        "redcap_survey_complete",
+        "redcap_survey_page_top"
 	],
 
 	"enable-every-page-hooks-on-system-pages": false,

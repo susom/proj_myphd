@@ -340,6 +340,13 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         REDCap::logEvent("Claimed External Record" ,$this->PREFIX . " claimed record " .
             $extRecordId . " from $extProject");
 
+        //xxyjl: is this where we pass back the key via javascript?
+        $this->emLog("foo2");
+        $hashed_key = $extRecord[$extField];
+        echo "<script type='text/javascript'>console.log('boo2');</script>";
+
+        echo "<script type='text/javascript'>" . $this->dumpResource("js/myPhd.js") . "</script>";
+//        echo "<script type='text/javascript'>myPhd.sendKey(" . json_encode($hashed_key) . ")</script>";
         // Done
         return true;
 	}
@@ -393,7 +400,25 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
     }
 
-	public function redcap_save_record( $project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
+    public function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
+
+    }
+
+    public function redcap_survey_page_top() {
+        /**  FOR TESTING
+        $burl = "fubar";
+        $foo = "fubar key";
+
+        echo "<script type='text/javascript'>console.log('boo');</script>";
+        echo "<script type='text/javascript'>" . $this->dumpResource("js/myPhd.js") . "</script>";
+        //echo "<script type='text/javascript'>myPhd.sendKey(" . json_encode($foo) . ")</script>";
+
+        $this->emLog("far bar3");
+        return false;
+        **/
+    }
+
+	public function redcap_survey_complete($project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
 
         // Do this later
         $delay_success = $this->delayModuleExecution();
@@ -439,6 +464,17 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
 
 	}
+
+    public function dumpResource($name)
+    {
+        $file = $this->getModulePath() . $name;
+        if (file_exists($file)) {
+            $contents = file_get_contents($file);
+            return $contents;
+        } else {
+            $this->emError("Unable to find $file");
+        }
+    }
 
 
 
