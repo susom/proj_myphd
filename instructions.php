@@ -3,18 +3,11 @@ namespace Stanford\ProjMyPHD;
 /** @var ProjMyPHD $module */
 
 
-// require_once ("emLock.php");
-
-
-// emLock::validate();
-
-
-
 ?>
 <h4><?php echo $module->getModuleName() ?> Instructions</h4>
 
 <p>
-    This module allows you to migrate data from and to another project when a certain condition happens.
+    This is a project specific External Module for MyPhD.  MyPHD is a personal health dashboard powered by researcher at Stanford.  More information can be found here: https://myphd.stanford.edu/.  This module enabled the distribution of base64 secure tokens as part of the application signup process.
 </p>
 
 <dl>

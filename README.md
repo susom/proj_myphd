@@ -1,7 +1,7 @@
 # ProjMyPHD
 
 ## Authors
-Stanford University, Andrew Martin
+Stanford University, Andrew Martin and Jae Lee
 
 ## Purpose
 ProjMyPHD is a project-specific EM used to grab the 'next' matching record from an external project and return values back to the main project.  It is similar to how REDCap's allocation-based randomization works.
@@ -12,6 +12,7 @@ This EM was motivated by multiple projects:
 
 ## What's Fancy
 This module supports two fancy features:
+
 ### Double Piping
 * the logic to select the next record from the external project is a mix of normal REDCap logic (supporting piping and smart-variables in the main project) with a twist to convert this into logic for the external project.  For example:
     ```
@@ -21,6 +22,7 @@ This module supports two fancy features:
     ```
     [used_by] = '' and [site] = 'daggroupa'
     ```
+
 ### emLock
 * A second interesting feature is driven by the need to ensure that claiming of codes is atomic.  We have had cases where under high utilization two different php sessions might try to claim the same, next available record.  To prevent this from happening, a new class and two new database tables were created.  The class is called emLock and uses the mysql database to do a row-level lock based on a scope defined in the code that should be unqiue to the resource being reserved.  This is all behind the scenes but means that the redcap user must have rights to creaete tables or else these statements must be run
 

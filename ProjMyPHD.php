@@ -22,6 +22,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
     public $event_id;
     public $group_id;
     public $repeat_instance;
+    private $token_count_threshold; // When remaining tokens are less than or equal to this value, an email will be sent
     public $Proj;
 
 
@@ -31,10 +32,79 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
 
     /**
+     * Upon completion of a survey we need to evaluate whether or not logic has been met to render javascript and key
+     *
+     * @param $project_id
+     * @param $record
+     * @param $instrument
+     * @param $event_id
+     * @param $group_id
+     * @param $survey_hash
+     * @param $response_id
+     * @param $repeat_instance
+     * @return void
+     */
+    public function redcap_survey_complete($project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
+
+        // Do this later
+        $delay_success = $this->delayModuleExecution();
+        if ($delay_success) return;
+
+        // Load the settings
+        $this->loadSettings();
+
+        // Set context to current save event - is reused across multiple instances
+        global $Proj;
+        $this->project_id      = $project_id;
+        $this->record          = $record;
+        $this->event_id        = $event_id;
+        $this->group_id        = $group_id;
+        $this->repeat_instance = $repeat_instance;
+        $this->Proj            = $Proj;
+
+        // Each instance will be run separately - a failure in one is not a failure in all
+        foreach ($this->instances as $i => $instance) {
+
+            $instance['i'] = $i;
+
+            // // Skip invalid configurations
+            // if ($this->validateClaimInstance($instance)) continue;
+
+            try {
+                // Run the claim instance
+                $this->processInstance($instance);
+            } catch (InvalidInstanceException $e) {
+                $this->emError("Caught InvalidInstanceException at line " . $e->getLine() . ": " . $e->getMessage());
+                REDCap::logEvent($this->getModuleName() . " Alert", $e->getMessage(),"",$this->record, $this->event_id);
+            } catch (\Exception $e) {
+                $this->emError("Generic Exception at line " . $e->getLine() . ": " . $e->getMessage());
+                REDCap::logEvent($this->getModuleName() . " Error", $e->getMessage(),"",$this->record, $this->event_id);
+                $this->sendAdminEmail("<pre>" . $e->getMessage() . "</pre> with trace: <pre>" . $e->getTraceAsString() . "</pre>");
+            } finally {
+                // Release the lock
+                emLock::release();
+                $this->emDebug("Released Lock: " . emLock::$lockId);
+            }
+
+        }
+
+
+    }
+
+
+
+
+
+
+
+
+
+    /**
      * Load all non-disabled instances
      */
 	public function loadSettings() {
         $this->instances = $this->getSubSettings('instance');
+        $this->token_count_threshold = $this->getProjectSetting('token-count-threshold');
     }
 
 
@@ -130,7 +200,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
         $claimLogic   = $instance['claim-logic'];
         $extProject   = $instance['external-project'];
-        $extLogic     = $instance['external-logic'];
+        $extLogicRaw  = $instance['external-logic'];
         $extUsedField = $instance['external-used-field'];
         $extDateField = $instance['external-date-field'];
         $i            = $instance['i'];
@@ -152,6 +222,8 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
 
         // Obtain lock for instance - in this case, the external-project
+        // TODO: REMOVE AND USE GET_LOCK()
+        //
         $scope = implode("_", array( $this->getModuleName(), $instance['external-project'] ));
         $lock = emLock::lock($scope);
         $this->emDebug("Obtained Lock: $lock on $scope");
@@ -167,23 +239,33 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         $extProj      = new Project($extProject);
 
         // Parse the 'special' logic for the external project
-        $logic = $this->parseExternalLogic($extLogic, $localRecord);
+        $extLogic = $this->parseExternalLogic($extLogicRaw, $localRecord);
 
         // Get a record from the external project
         $params = [
             "project_id" => $extProject,
-            "filterLogic" => $logic,
+            "filterLogic" => $extLogic,
             "return_format" => 'json'
         ];
         $q = json_decode(REDCap::getData($params), true);
 
         if (empty($q)) {
-            $msg = "No records are available in project $extProject meeting required logic: $logic";
+            $msg = "MyPHD Alert [$this->project_id]: No MyPHD Tokens available token database project $extProject meeting required logic: $extLogic";
             $this->emDebug($msg, $params, $q);
-            REDCap::logEvent($this->getModuleName() . " unable to find external record in $extProject", $msg,"",$this->record, $this->event_id);
+            REDCap::logEvent($this->getModuleName() . " Unable to Deliver Token", $msg,"",$this->record, $this->event_id);
             $this->notifyAdmin($msg);
             return false;
         }
+
+        // Check if tokens remaining is below threshold
+        if (!empty($this->token_count_threshold) && $this->token_count_threshold > 0) {
+            if (count($q) <= $this->token_count_threshold) {
+                $msg = "MyPHD Alert [$this->project_id]: Only " . count($q) . " tokens remain in database project $extProject - please add more tokens!";
+                $this->notifyAdmin($msg);
+                $this->emDebug($msg);
+            }
+        }
+
         $extRecord = array_shift($q);
         $extRecordId = $extRecord[$extProj->table_pk];
         $this->emDebug("Found external project $extProject - loaded record $extRecordId");
@@ -417,53 +499,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         return false;
         **/
     }
-
-	public function redcap_survey_complete($project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
-
-        // Do this later
-        $delay_success = $this->delayModuleExecution();
-        if ($delay_success) return;
-
-	    // Load the settings
-	    $this->loadSettings();
-
-	    // Set context to current save event - is reused across multiple instances
-        global $Proj;
-	    $this->project_id      = $project_id;
-	    $this->record          = $record;
-	    $this->event_id        = $event_id;
-	    $this->group_id        = $group_id;
-	    $this->repeat_instance = $repeat_instance;
-        $this->Proj            = $Proj;
-
-        // Each instance will be run separately - a failure in one is not a failure in all
-        foreach ($this->instances as $i => $instance) {
-
-	        $instance['i'] = $i;
-
-            // // Skip invalid configurations
-	        // if ($this->validateClaimInstance($instance)) continue;
-
-            try {
-                // Run the claim instance
-                $this->processInstance($instance);
-            } catch (InvalidInstanceException $e) {
-                $this->emError("Caught InvalidInstanceException at line " . $e->getLine() . ": " . $e->getMessage());
-                REDCap::logEvent($this->getModuleName() . " Alert", $e->getMessage(),"",$this->record, $this->event_id);
-            } catch (\Exception $e) {
-                $this->emError("Generic Exception at line " . $e->getLine() . ": " . $e->getMessage());
-                REDCap::logEvent($this->getModuleName() . " Error", $e->getMessage(),"",$this->record, $this->event_id);
-                $this->sendAdminEmail("<pre>" . $e->getMessage() . "</pre> with trace: <pre>" . $e->getTraceAsString() . "</pre>");
-            } finally {
-                // Release the lock
-                emLock::release();
-                $this->emDebug("Released Lock: " . emLock::$lockId);
-            }
-
-        }
-
-
-	}
 
     public function dumpResource($name)
     {
