@@ -7,8 +7,8 @@ use Project;
 use LogicTester;
 
 require_once "emLoggerTrait.php";
-require_once "InvalidInstanceException.php";
-require_once "emLock.php";
+require_once "CustomExceptions.php";
+//require_once "emLock.php";
 
 class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
@@ -20,31 +20,39 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
     public $project_id;
     public $record;
     public $event_id;
-    public $group_id;
     public $repeat_instance;
     private $token_count_threshold; // When remaining tokens are less than or equal to this value, an email will be sent
     public $Proj;
 
+    public $lock_name;
 
     public function __construct() {
 		parent::__construct();
 	}
 
-
     /**
-     * Upon completion of a survey we need to evaluate whether or not logic has been met to render javascript and key
+     * TODO: xxyjl: set the default config s
      *
+     * @param $version
      * @param $project_id
-     * @param $record
-     * @param $instrument
-     * @param $event_id
-     * @param $group_id
-     * @param $survey_hash
-     * @param $response_id
-     * @param $repeat_instance
      * @return void
      */
-    public function redcap_survey_complete($project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
+    public function redcap_module_project_enable($version, $project_id) {
+        //TODO: Set default values for inbound mapping
+    }
+
+
+    public function redcap_survey_acknowledgement_page(int $project_id, string $record,
+                                                       string $instrument, int $event_id, int $group_id,
+                                                       string $survey_hash, int $response_id, int $repeat_instance) {
+        $this->main($project_id, $record, $event_id, $repeat_instance);
+    }
+
+
+    /**
+     * Upon completion of a survey we need to evaluate execution to obtain and render a MyPHD Key
+     **/
+    public function main($project_id, $record, $event_id, $repeat_instance = 1) {
 
         // Do this later
         $delay_success = $this->delayModuleExecution();
@@ -58,7 +66,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         $this->project_id      = $project_id;
         $this->record          = $record;
         $this->event_id        = $event_id;
-        $this->group_id        = $group_id;
         $this->repeat_instance = $repeat_instance;
         $this->Proj            = $Proj;
 
@@ -76,14 +83,17 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             } catch (InvalidInstanceException $e) {
                 $this->emError("Caught InvalidInstanceException at line " . $e->getLine() . ": " . $e->getMessage());
                 REDCap::logEvent($this->getModuleName() . " Alert", $e->getMessage(),"",$this->record, $this->event_id);
+            } catch (FailedLockException $e) {
+                $this->emError("Unable to obtain a unique lock on key database at " . $e->getLine() . ": " . $e->getMessage());
+                REDCap::logEvent($this->getModuleName() . " Alert", $e->getMessage(),"",$this->record, $this->event_id);
             } catch (\Exception $e) {
                 $this->emError("Generic Exception at line " . $e->getLine() . ": " . $e->getMessage());
                 REDCap::logEvent($this->getModuleName() . " Error", $e->getMessage(),"",$this->record, $this->event_id);
                 $this->sendAdminEmail("<pre>" . $e->getMessage() . "</pre> with trace: <pre>" . $e->getTraceAsString() . "</pre>");
             } finally {
                 // Release the lock
-                emLock::release();
-                $this->emDebug("Released Lock: " . emLock::$lockId);
+                $this->query("SELECT RELEASE_LOCK(?)", [$this->lock_name]);
+                $this->emDebug("Released Lock: " . $this->lock_name);
             }
 
         }
@@ -222,11 +232,13 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
 
         // Obtain lock for instance - in this case, the external-project
-        // TODO: REMOVE AND USE GET_LOCK()
-        //
-        $scope = implode("_", array( $this->getModuleName(), $instance['external-project'] ));
-        $lock = emLock::lock($scope);
-        $this->emDebug("Obtained Lock: $lock on $scope");
+        $this->lock_name = $this->getModuleName() . "_project_$extProject";
+        $result = $this->query("SELECT GET_LOCK(?, 5)", [$this->lock_name]);
+        $row = $result->fetch_row();
+        if($row[0] !== 1){
+            throw new FailedLockException("Unable to obtain lock on $extProject");
+        }
+        $this->emDebug("Obtained Lock: $this->lock_name");
 
         // Load the current record
         $params = [
@@ -286,44 +298,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                 throw New InvalidInstanceException("[$i] External project $extProject is missing extDateField $extDateField");
             }
             $extRecord[$extDateField] = date("Y-m-d H:i:s");
-        }
-
-        // Outbound Mapping
-        foreach ($instance['outbound-mapping'] as $o => $map) {
-            $desc            = $map['outbound-desc'];
-            $localField      = $map['this-field-outbound'];
-            $localEventId    = $map['this-event-outbound'];
-            $localInstanceId = $map['this-instance-outbound'];
-            $remoteField     = $map['external-field-outbound'];
-
-            if(empty($localField) || empty($remoteField)) {
-                // Missing required input
-                $this->emDebug("[$i] Missing required outbound mapping parameters");
-                continue;
-            }
-
-            $localForm = $this->Proj->metadata[$localField]['form_name'];
-
-            // Check EVENT
-            if (!empty($localEventId)) {
-                // EventId is hard coded - make sure it is valid for the field
-                if (!in_array($localForm, $this->Proj->eventsForms[$localEventId])) {
-                    throw New InvalidInstanceException("[$i] outbound: local field $localField is not enabled in local event id $localEventId - check event/form mapping");
-                }
-            } else {
-                // Event was not specified, set local event it to current event_id
-                $localEventId = $this->event_id;
-                if (!in_array($localForm, $this->Proj->eventsForms[$localEventId])) {
-                    throw New InvalidInstanceException("[$i] outbound: event id was blank in config so using context event id of $localEventId which does not contain the specified field $localField.  You should craft your claim logic so that this can not take place if you are unable to specify the event id up-front.  Optionally, we could just exit and not consider this a failure.");
-                }
-            }
-
-            $val = $localRecord[$this->record][$localEventId][$localField];
-            if (!empty($val)) {
-                $extRecord[$remoteField] = $val;
-                $this->emDebug("Setting $remoteField to $val");
-            }
-
         }
 
         // Inbound Mapping (SUPPORTS FILES)
@@ -395,6 +369,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
 
         // Save to current project -- had to use record method to include file id...
+        // TODO: If the records object changes, this part is fragile and could be the source of future failures
         $params = [
             0 => $this->project_id,
             1 => 'array',
@@ -419,8 +394,40 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
 
         $this->emDebug("Claimed record $extRecordId from project $extProject");
-        REDCap::logEvent("Claimed External Record" ,$this->PREFIX . " claimed record " .
+        REDCap::logEvent("Claimed External MyPHD Key record " .
             $extRecordId . " from $extProject");
+
+        // Initialize Javascript
+        $this->initializeJavascriptModuleObject()
+
+        ?>
+            <script>
+                $(function() {
+                    const module = <?=$this->getJavascriptModuleObjectName()?>;
+
+                    module.token = <?php echo $extRecord[$extField] ?>;
+
+                    try {
+                        window.webkit.messageHandlers.nativeProcessnative.postMessage(module.token);
+                        console.log("webkit token sent");
+                    } catch(err) {
+                        console.log(err.message):
+                    }
+
+                    // For Android
+                    try {
+                        (function callAndroid() {
+                            var token = <?php echo $extRecord[$extField] ?>;
+                            document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(token);
+                        })();
+                        console.log("Android success");
+                    } catch (err) {
+                        console.log("Android Error", err.message)
+                    }
+
+                })
+            </script>
+        <?php
 
         //xxyjl: is this where we pass back the key via javascript?
         $this->emLog("foo2");

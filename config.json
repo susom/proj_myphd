@@ -17,9 +17,11 @@
     }
   ],
   "permissions": [
+   "redcap_survey_acknowledgement_page",
     "redcap_save_record",
     "redcap_survey_complete",
-    "redcap_survey_page_top"
+    "redcap_survey_page_top",
+    "redcap_module_project_enable"
   ],
   "enable-every-page-hooks-on-system-pages": false,
   "links": {
@@ -66,19 +68,29 @@
           "key": "external-used-field",
           "name": "<b>External Claimed By Field</b><br>(highly recommended) Field in the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project where this module will store the <span class='text-lg badge badge-lg badge-success'>THIS</span> project's record id when a claim occurs.  Often this is the field referenced above in the <b>External Lookup Logic</b><br><i>e.g.</i> <code>claimed_by</code> -- just the field name, no brackets or braces.",
           "required": false,
-          "type": "text"
+          "type": "text",
+          "default": "claimed_by_record"
         },
         {
           "key": "external-date-field",
           "name": "<b>External Date Claimed Field</b><br><i>(optional)</i> Store timestamp of when the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> record was claimed<br><i>e.g.</i> <code>claimed_date</code> -- must be text or datetime field type",
           "required": false,
-          "type": "text"
+          "type": "text",
+          "default": "claimed_timestamp"
+        },
+        {
+          "key": "external-myphd-field",
+          "name": "<b>MyPHD Key Field name in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL KEY</span> project</b>",
+          "required": true,
+          "type": "text",
+          "default": "key_base64"
         },
         {
           "key": "token-count-threshold",
           "name": "<b>Token Count Threshold</b><br><i>(optional)</i> When the count of available tokens fall below this amount, an alert will be sent to the email entered in Error Email",
           "required": false,
-          "type": "text"
+          "type": "text",
+          "default": "25"
         },
         {
           "key": "inbound-mapping",
@@ -89,15 +101,16 @@
           "sub_settings": [
             {
               "key": "inbound-desc",
-              "name": "Copy values from the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project to fields in <span class='text-lg badge badge-lg badge-success'>THIS</span> project when a claim event occurs.  Make sure the field types are compatible.  Note it IS possible to copy FILES as well as text values.",
+              "name": "OPTIONALLY: You can copy values from the key database project record to fields in <span class='text-lg badge badge-lg badge-success'>THIS</span> project when a claim event occurs.  Make sure the field types are compatible.  Note it IS possible to copy FILES as well as text values.  Example fields you might want to copy are: key_base64 (text field), key (file field), claimed_timestamp (date field Y-M-D h:i:s)",
               "required": true,
               "type": "descriptive"
             },
             {
               "key": "external-field-inbound",
-              "name": "<b>Field name in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project</b>",
+              "name": "<b>MyPHD Key Field name in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL KEY</span> project</b>",
               "required": true,
-              "type": "text"
+              "type": "text",
+              "default": "key_base64"
             },
             {
               "key": "this-field-inbound",
@@ -120,45 +133,6 @@
           ]
         },
         {
-          "key": "outbound-mapping",
-          "name": "<b>Outbound Mapping Rule</b>",
-          "required": false,
-          "type": "sub_settings",
-          "repeatable": true,
-          "sub_settings": [
-            {
-              "key": "outbound-desc",
-              "name": "Map values from <span class='text-lg badge badge-lg badge-success'>THIS</span> project to fields in the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> database when a claim event occurs",
-              "required": false,
-              "type": "descriptive"
-            },
-            {
-              "key": "this-field-outbound",
-              "name": "<b>Field name in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b>",
-              "required": false,
-              "type": "field-list"
-            },
-            {
-              "key": "this-event-outbound",
-              "name": "<b>Event in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current event",
-              "required": false,
-              "type": "event-list"
-            },
-            {
-              "key": "this-instance-outbound",
-              "name": "<b>Instance in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current instance",
-              "required": false,
-              "type": "text"
-            },
-            {
-              "key": "external-field-outbound",
-              "name": "<b>Field name in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> database<br>Value from this project will be saved in external project.</b>",
-              "required": false,
-              "type": "text"
-            }
-          ]
-        },
-        {
           "key": "disable-instance",
           "name": "<b>Disable This Instance</b><br>So you can debug without having to delete all your configuration, you can simply check this box to prevent this instance of ProjMyPHD from evaluating on save.",
           "required": false,
@@ -168,7 +142,7 @@
     },
     {
       "key": "error-email-address",
-      "name": "<b>Error Email</b><br>(optional) In the event there is a configuration error or processing error, enter an email address to be notified. This email will be notified when token count is below threshold.",
+      "name": "<b>Error Email</b><br>(optional) In the event there is a configuration error or processing error, enter an email address to be notified. <br>This email will be notified when token count is below threshold.",
       "required": false,
       "type": "text"
     },
