@@ -42,9 +42,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
     }
 
 
-    public function redcap_survey_acknowledgement_page(int $project_id, string $record,
-                                                       string $instrument, int $event_id, int $group_id,
-                                                       string $survey_hash, int $response_id, int $repeat_instance) {
+    public function redcap_survey_acknowledgement_page(int $project_id, string $record = NULL, string $instrument, int $event_id, int $group_id = NULL, string $survey_hash, int $response_id = NULL, int $repeat_instance = 1) {
         $this->main($project_id, $record, $event_id, $repeat_instance);
     }
 
@@ -92,8 +90,10 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                 $this->sendAdminEmail("<pre>" . $e->getMessage() . "</pre> with trace: <pre>" . $e->getTraceAsString() . "</pre>");
             } finally {
                 // Release the lock
-                $this->query("SELECT RELEASE_LOCK(?)", [$this->lock_name]);
-                $this->emDebug("Released Lock: " . $this->lock_name);
+                if ($this->lock_name != null) {
+                    $this->query("SELECT RELEASE_LOCK(?)", [$this->lock_name]);
+                    $this->emDebug("Released Lock: " . $this->lock_name);
+                }
             }
 
         }
@@ -207,12 +207,16 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                     )
             )
          */
-
+        $token_count_threshold = $instance['token-count-threshold'];
         $claimLogic   = $instance['claim-logic'];
         $extProject   = $instance['external-project'];
         $extLogicRaw  = $instance['external-logic'];
         $extUsedField = $instance['external-used-field'];
         $extDateField = $instance['external-date-field'];
+        $extProjectField = $instance['external-project-field'];
+        $extMyPHDField    = $instance['external-myphd-field'];
+        $inMyPHDField    = $instance['inbound-myphd-field'];
+        $inEvent         = $instance['inbound-event'];
         $i            = $instance['i'];
 
         if ($instance['disable-instance']) {
@@ -270,8 +274,8 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
 
         // Check if tokens remaining is below threshold
-        if (!empty($this->token_count_threshold) && $this->token_count_threshold > 0) {
-            if (count($q) <= $this->token_count_threshold) {
+        if (!empty($token_count_threshold) && $token_count_threshold > 0) {
+            if (count($q) <= $token_count_threshold) {
                 $msg = "MyPHD Alert [$this->project_id]: Only " . count($q) . " tokens remain in database project $extProject - please add more tokens!";
                 $this->notifyAdmin($msg);
                 $this->emDebug($msg);
@@ -300,6 +304,35 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             $extRecord[$extDateField] = date("Y-m-d H:i:s");
         }
 
+        // Set the current project
+        if (!empty($extProjectField)) {
+            if (! isset($extProj->metadata[$extProjectField])) {
+                throw New InvalidInstanceException("[$i] External project $extProject is missing extProjectField $extProjectField");
+            }
+            $extRecord[$extProjectField] = $this->project_id;
+        }
+
+        // INBOUND SETTING
+
+        // Does $extMyPHDField exist on specified event
+        $phdForm = $this->Proj->metadata[$inMyPHDField]['form_name'];
+
+        //CHECK event for phd field
+        if (!empty($inEvent)) {
+            // Is field defined in event
+            if (!in_array($phdForm, $this->Proj->eventsForms[$inEvent])) {
+                throw New InvalidInstanceException("[$i] inbound: local event_id $inEvent does not contain field $inMyPHDField - check event/form mapping");
+            }
+        } else {
+            // Set local event it to current event_id
+            $inEvent = $this->event_id;
+            if (!in_array($phdForm, $this->Proj->eventsForms[$inEvent])) {
+                throw New InvalidInstanceException("[$i] inbound: local event id is not configured, using context value of $inEvent which does not contain the field $inMyPHDField.  Check form/event mappings, define the event_id in the mapping, or adjust claim logic so that a claim doesn't happen outside of the intended event_ids.");
+            }
+        }
+        //set the local hash field
+        $localRecord[$this->record][$inEvent][$inMyPHDField] = $extRecord[$extMyPHDField];
+
         // Inbound Mapping (SUPPORTS FILES)
         foreach ($instance['inbound-mapping'] as $o => $map) {
             $desc            = $map['inbound-desc'];
@@ -310,7 +343,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
             if(empty($localField) || empty($extField)) {
                 // Missing required input
-                $this->emDebug("[$i] Missing required inbound mapping parameters");
+                $this->emDebug("[$i] No inbound mapping parameters");
                 continue;
             }
 
@@ -394,8 +427,8 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
 
         $this->emDebug("Claimed record $extRecordId from project $extProject");
-        REDCap::logEvent("Claimed External MyPHD Key record " .
-            $extRecordId . " from $extProject");
+        REDCap::logEvent("Claimed External MyPHD Key record " . $extRecordId . " from $extProject");
+        $foo = $extRecord[$extMyPHDField];
 
         // Initialize Javascript
         $this->initializeJavascriptModuleObject()
@@ -405,11 +438,11 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                 $(function() {
                     const module = <?=$this->getJavascriptModuleObjectName()?>;
 
-                    module.token = <?php echo $extRecord[$extField] ?>;
+                    module.token = <?php echo $extRecord[$extMyPHDField] ?>;
 
                     try {
-                        window.webkit.messageHandlers.nativeProcessnative.postMessage(module.token);
-                        console.log("webkit token sent");
+//xxyjl                        window.webkit.messageHandlers.nativeProcessnative.postMessage(module.token);
+                        console.log("webkit token sent" +module.token);
                     } catch(err) {
                         console.log(err.message):
                     }
@@ -417,8 +450,8 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                     // For Android
                     try {
                         (function callAndroid() {
-                            var token = <?php echo $extRecord[$extField] ?>;
-                            document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(token);
+                            var token = <?php echo $extRecord[$extMyPHDField] ?>;
+//xxyjl                            document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(token);
                         })();
                         console.log("Android success");
                     } catch (err) {
@@ -429,13 +462,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             </script>
         <?php
 
-        //xxyjl: is this where we pass back the key via javascript?
-        $this->emLog("foo2");
-        $hashed_key = $extRecord[$extField];
-        echo "<script type='text/javascript'>console.log('boo2');</script>";
-
-        echo "<script type='text/javascript'>" . $this->dumpResource("js/myPhd.js") . "</script>";
-//        echo "<script type='text/javascript'>myPhd.sendKey(" . json_encode($hashed_key) . ")</script>";
         // Done
         return true;
 	}
@@ -489,23 +515,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         }
     }
 
-    public function redcap_save_record($project_id, $record, $instrument, $event_id, $group_id = NULL, $survey_hash = NULL, $response_id = NULL, $repeat_instance = 1) {
-
-    }
-
-    public function redcap_survey_page_top() {
-        /**  FOR TESTING
-        $burl = "fubar";
-        $foo = "fubar key";
-
-        echo "<script type='text/javascript'>console.log('boo');</script>";
-        echo "<script type='text/javascript'>" . $this->dumpResource("js/myPhd.js") . "</script>";
-        //echo "<script type='text/javascript'>myPhd.sendKey(" . json_encode($foo) . ")</script>";
-
-        $this->emLog("far bar3");
-        return false;
-        **/
-    }
 
     public function dumpResource($name)
     {
