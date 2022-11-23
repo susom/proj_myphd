@@ -464,7 +464,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                     module.token = <?php echo $extRecord[$extMyPHDField] ?>;
 
                     try {
-//xxyjl                        window.webkit.messageHandlers.nativeProcessnative.postMessage(module.token);
+                        window.webkit.messageHandlers.nativeProcessnative.postMessage(module.token);
                         console.log("webkit token sent" +module.token);
                     } catch(err) {
                         console.log(err.message):
@@ -474,7 +474,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                     try {
                         (function callAndroid() {
                             var token = <?php echo $extRecord[$extMyPHDField] ?>;
-//xxyjl                            document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(token);
+                            document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(token);
                         })();
                         console.log("Android success");
                     } catch (err) {
