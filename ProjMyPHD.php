@@ -39,6 +39,29 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
      */
     public function redcap_module_project_enable($version, $project_id) {
         //TODO: Set default values for inbound mapping
+        $current = $this->getSubSettings('instance');
+
+        if (!$current) {
+            //nothihg is set so set all the defaults
+
+            $this->emDebug("Updating first subsetting with default");
+            $sub_zero_default = array(
+                0 => array(
+                    'external-used-field'=>'claimed_by_record',
+                    'external-date-field'=>'claimed_timestamp',
+                    'external-project-field'=>'claimed_by_project',
+                    'external-myphd-field'=>'key_base64',
+                    'inbound-myphd-field'=>'key_base64'
+                )
+            );
+            //TODO: how to set subsettings?
+            //$this->setProjectSetting('instance', $sub_zero_default);
+        } else {
+            $this->emDebug("No need to update");
+        }
+
+//            $this->setProjectSetting(self::PROJECT_TOKEN_KEY, $this->email_token, $project_id);
+
     }
 
 
