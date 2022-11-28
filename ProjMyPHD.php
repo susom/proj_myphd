@@ -451,36 +451,36 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
         $this->emDebug("Claimed record $extRecordId from project $extProject");
         REDCap::logEvent("Claimed External MyPHD Key record " . $extRecordId . " from $extProject");
-        $foo = $extRecord[$extMyPHDField];
 
         // Initialize Javascript
-        $this->initializeJavascriptModuleObject()
+        $this->initializeJavascriptModuleObject();
 
         ?>
             <script>
                 $(function() {
-                    const module = <?=$this->getJavascriptModuleObjectName()?>;
-
-                    module.token = <?php echo $extRecord[$extMyPHDField] ?>;
+                    const module = <?= $this->getJavascriptModuleObjectName() ?>;
+                    module.token = <?= json_encode($extRecord[$extMyPHDField]) ?>;
 
                     try {
                         window.webkit.messageHandlers.nativeProcessnative.postMessage(module.token);
-                        console.log("webkit token sent" +module.token);
+                        console.log("webkit token sent!");
                     } catch(err) {
-                        console.log(err.message):
+                        console.log("Error sending webkit message");
+                        // console.log(err.message):
+                        window.lastError = err;
                     }
 
                     // For Android
                     try {
                         (function callAndroid() {
-                            var token = <?php echo $extRecord[$extMyPHDField] ?>;
+                            const token = <?= json_encode($extRecord[$extMyPHDField]) ?>;
                             document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(token);
                         })();
                         console.log("Android success");
                     } catch (err) {
-                        console.log("Android Error", err.message)
+                        console.log("Android Error")
+                        window.lastError = err;
                     }
-
                 })
             </script>
         <?php
