@@ -66,6 +66,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
     public function redcap_survey_acknowledgement_page(int $project_id, string $record = NULL, string $instrument, int $event_id, int $group_id = NULL, string $survey_hash, int $response_id = NULL, int $repeat_instance = 1) {
         $this->main($project_id, $record, $event_id, $repeat_instance);
+
     }
 
 
@@ -117,19 +118,8 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                     $this->emDebug("Released Lock: " . $this->lock_name);
                 }
             }
-
         }
-
-
     }
-
-
-
-
-
-
-
-
 
     /**
      * Load all non-disabled instances
@@ -139,46 +129,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         $this->token_count_threshold = $this->getProjectSetting('token-count-threshold');
     }
 
-
-    /**
-     * Validate Claim Instance
-     * @return bool
-     */
-	public function validateClaimInstance($instance) {
-        $errors = [];
-
-	    if (empty($instance['claim-logic'])) {
-	        $errors[] = "[" . $instance['i'] . "] Missing required claim-logic";
-        }
-        if (empty($instance['external-project'])) {
-            $errors[] = "[" . $instance['i'] . "] Missing external project";
-        }
-
-        $extProj = new Project($instance['external-project']);
-        if (!empty($instance['external-used-field']) && empty($extProj->metadata[$instance['external-used-field']])) {
-            $errors[] = "[" . $instance['i'] . "] External project missing external-used-field " . $instance['external-used-field'];
-        }
-
-        if (!empty($instance['external-date-field']) && empty($extProj->metadata[$instance['external-date-field']])) {
-            $errors[] = "[" . $instance['i'] . "] External project missing external-date-field " . $instance['external-date-field'];
-        }
-
-
-
-        // $this->instances[$i]['_proj']
-        // TODO: Other validation
-
-        if(!empty($errors)) {
-            if ($instance['disable-instance']) {
-                return false;
-            } else {
-                return true;
-            }
-        } else {
-            $this->errors = array_merge($this->errors, $errors);
-            return false;
-        }
-    }
 
     /**
      * Returns true or false
