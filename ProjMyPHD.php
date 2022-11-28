@@ -8,7 +8,6 @@ use LogicTester;
 
 require_once "emLoggerTrait.php";
 require_once "CustomExceptions.php";
-//require_once "emLock.php";
 
 class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
