@@ -4,7 +4,7 @@
 Stanford University, Andrew Martin and Jae Lee
 
 ## Purpose
-ProjMyPHD is a project-specific EM used to grab the 'next' matching record from an external project and return values back to the main project.  It is similar to how REDCap's allocation-based randomization works.
+ProjMyPHD is a project-specific EM used to grab the 'next' matching key from an external key project and return values back to the main project.  It is similar to how REDCap's allocation-based randomization works.
 This EM was motivated by multiple projects:
 - A giftcard project that uses similar logic to pull the next available, unused electronic giftcard when someone completes some surveys
 - A secure mobile app project where eligible participants were emailed a binary activation key to link a mobile app to their research profile.  This EM grabs the next key from a external project full of keys and then issues the key to a participant via an alert.
@@ -24,33 +24,8 @@ This module supports two fancy features:
     ```
 
 ### emLock
-* A second interesting feature is driven by the need to ensure that claiming of codes is atomic.  We have had cases where under high utilization two different php sessions might try to claim the same, next available record.  To prevent this from happening, a new class and two new database tables were created.  The class is called emLock and uses the mysql database to do a row-level lock based on a scope defined in the code that should be unqiue to the resource being reserved.  This is all behind the scenes but means that the redcap user must have rights to creaete tables or else these statements must be run
+* A second interesting feature is driven by the need to ensure that claiming of codes is atomic.  We have had cases where under high utilization two different php sessions might try to claim the same, next available record.  
 
 With the latest enhancements, you can now incorporate smart-variables like DAG name into the lookup logic.
 
 Good luck - and reach out to the consortium if you are having setup difficulties.
-
-#### Here is the SQL for the emLock Tables:
-```sql
-create table redcap_em_lock
-(
-    id int NOT NULL AUTO_INCREMENT,
-    scope varchar(256) UNIQUE NOT NULL,
-    creation_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id)
-);
-
-create table redcap_em_lock_log
-(
-    id int NOT NULL AUTO_INCREMENT,
-    lock_id int NOT NULL,
-    creation_date DATETIME DEFAULT CURRENT_TIMESTAMP,
-    duration_ms int,
-    PRIMARY KEY (id)
-);
-
-alter table redcap_em_lock_log
-add constraint redcap_em_lock_log_redcap_em_lock_id_fk
-    foreign key (lock_id) references redcap_em_lock (id)
-        on delete cascade;
-```

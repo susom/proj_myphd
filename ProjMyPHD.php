@@ -129,7 +129,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
             // Create a project object for the external pid
             global $Proj;
-            $extProj      = new Project($this->ext_project);
+            $extProj = new Project($this->ext_project);
 
             // Obtain lock for instance - in this case, the external-project
             $this->lock_name = $this->getModuleName() . "_project_" . $this->ext_project;
@@ -309,10 +309,10 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             if (!empty($q['errors'])) {
                 throw New InvalidInstanceException("Errors during local save of record $record : " . json_encode($q['errors']));
             }
-
             $this->emDebug("Claimed record $ext_record_id from project $this->ext_project");
             REDCap::logEvent("Claimed External MyPHD Key record " . $ext_record_id . " from $this->ext_project");
 
+            // Send key to client
             $this->renderKey($ext_record[$this->ext_key_field]);
         } catch (InvalidInstanceException $e) {
             $this->emError("Caught InvalidInstanceException at line " . $e->getLine() . ": " . $e->getMessage());
@@ -356,8 +356,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                     // For Android
                     try {
                         (function callAndroid() {
-                            const myphdkey = <?= json_encode($key_string) ?>;
-                            document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(myphdkey);
+                            document.location = "js://webview?status=0&myphdkey=" + encodeURIComponent(module.myphdkey);
                         })();
                         console.log("Android success");
                     } catch (err) {
