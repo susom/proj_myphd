@@ -100,7 +100,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
         if ($delay_success) return false;
 
         // Only trigger if claim form is set and matches
-        $this->claim_form = $this->getProjectSetting(['claim-form']);
+        $this->claim_form = $this->getProjectSetting('claim-form');
         if ($instrument !== $this->claim_form) return false;
 
         if (!$this->settingsValid()) {
@@ -374,15 +374,15 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
      */
 	public function loadSettings() {
         // $this->claim_form           = $this->getProjectSetting(['claim-form']);
-        $this->claim_logic           = $this->getProjectSetting(['claim-logic']);
-        $this->ext_project           = $this->getProjectSetting(['external-project']);
-        $this->inbound_key_field     = $this->getProjectSetting(['inbound-key-field']);
-        $this->inbound_event         = $this->getProjectSetting(['inbound-event']);
-        $this->ext_used_field        = $this->getProjectSetting(['external-used-field']);
-        $this->ext_logic_raw         = $this->getProjectSetting(['external-logic']);
-        $this->ext_timestamp_field   = $this->getProjectSetting(['external-timestamp-field']);
-        $this->ext_project_field     = $this->getProjectSetting(['external-project-field']);
-        $this->ext_key_field         = $this->getProjectSetting(['external-key-field']);
+        $this->claim_logic           = $this->getProjectSetting('claim-logic');
+        $this->ext_project           = $this->getProjectSetting('external-project');
+        $this->inbound_key_field     = $this->getProjectSetting('inbound-key-field');
+        $this->inbound_event         = $this->getProjectSetting('inbound-event');
+        $this->ext_used_field        = $this->getProjectSetting('external-used-field');
+        $this->ext_logic_raw         = $this->getProjectSetting('external-logic');
+        $this->ext_timestamp_field   = $this->getProjectSetting('external-timestamp-field');
+        $this->ext_project_field     = $this->getProjectSetting('external-project-field');
+        $this->ext_key_field         = $this->getProjectSetting('external-key-field');
         $this->token_count_threshold = $this->getProjectSetting('token-count-threshold');
     }
 
