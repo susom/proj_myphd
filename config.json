@@ -1,187 +1,184 @@
 {
-  "name": "Proj MyPHD",
-  "namespace": "Stanford\\ProjMyPHD",
-  "description": "This is a project specific External Module for MyPhD.  MyPHD is a personal health dashboard powered by researcher at Stanford.  More information can be found here: https://myphd.stanford.edu/.  This module enabled the distribution of base64 secure tokens as part of the application signup process.",
-  "documentation": "README.md",
-  "framework-version": 11,
-  "authors": [
-    {
-      "name": "Andrew Martin",
-      "email": "andy123@stanford.edu",
-      "institution": "Stanford University"
-    },
-    {
-      "name": "Jae Lee",
-      "email": "jael@stanford.edu",
-      "institution": "Stanford University"
-    }
-  ],
-  "permissions": [
-      "redcap_survey_acknowledgement_page",
-      "redcap_module_project_enable"
-  ],
-  "enable-every-page-hooks-on-system-pages": false,
-  "links": {
-    "project": [
-      {
-        "name": "Proj MyPHD Instructions",
-        "icon": "fas fa-question-circle",
-        "url": "instructions.php",
-        "show-header-and-footer": true
-      }
-    ],
-    "control-center": [
-    ]
-  },
-  "no-auth-pages": [
-  ],
-  "project-settings": [
-    {
-      "key": "instance",
-      "name": "<b>Define 1 or more claim events for your project</b>",
-      "required": true,
-      "type": "sub_settings",
-      "repeatable": true,
-      "sub_settings": [
+    "name": "Proj MyPHD",
+    "namespace": "Stanford\\ProjMyPHD",
+    "description": "This is a project specific External Module for MyPhD.  MyPHD is a personal health dashboard powered by researcher at Stanford.  More information can be found here: https://myphd.stanford.edu/.  This module enabled the distribution of base64 secure tokens as part of the application signup process.",
+    "documentation": "README.md",
+    "framework-version": 11,
+    "authors": [
         {
-          "key": "claim-logic",
-          "name": "<b>Attempt Claim Logic</b><br>If this statement evaluates as TRUE on a Save event in <span class='text-lg badge badge-lg badge-success'>THIS</span> project, the defined claim below will be executed.  Typically, you will use the <b>Inbound Mapping Rules</b> below to change the value of one of the fields referenced in this logic to prevent a record from re-claiming over and over on each save event.  The logic is evaluated in the context of the current save event for event ids and instance ids.<br><i>e.g.</i> <code>[calc_do_lookup] = '1' AND [inbound_mapped_field] = ''</code>",
-          "required": true,
-          "type": "textarea"
+            "name": "Andrew Martin",
+            "email": "andy123@stanford.edu",
+            "institution": "Stanford University"
         },
         {
-          "key": "external-project",
-          "name": "<b>MyPHD Token Database Project</b><br>This is the project that has records 'to be claimed'.  It must be classical.  Check out the README for example project definitions.",
-          "required": true,
-          "type": "project-id"
-        },
-        {
-          "key": "external-logic",
-          "name": "<b>External Lookup Logic</b><br>To find an available record from the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> database, each external record will be evaluated using logic defined here until true.  The syntax is a little different to accommodate a mix of THIS and the EXTERNAL project's data.  For fields in the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project, use { } brackets instead of [ ] brackets.  You can refer to data from the current record in <span class='text-lg badge badge-lg badge-success'>THIS</span> project using normal branching and also use smart variables.<hr>Examples:<br><ul><li><code>{claimed_date}=''</code> will find the first external record without a claimed_date value.</li><li><code>{claimed_date}='' and {dag} = '[record-dag-name]'</code> will find an <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> record where the column 'dag' has a value of the current record's unique group name</li></ul>Check out the full documentation for more details and pay attention to quotes.",
-          "required": true,
-          "type": "textarea"
-        },
-        {
-          "key": "external-used-field",
-          "name": "<b>External Claimed By Field</b><br>(highly recommended) Field in the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project where this module will store the <span class='text-lg badge badge-lg badge-success'>THIS</span> project's record id when a claim occurs.  Often this is the field referenced above in the <b>External Lookup Logic</b><br><i>e.g.</i> <code>claimed_by</code> -- just the field name, no brackets or braces.",
-          "required": false,
-          "type": "text",
-          "default": "claimed_by_record"
-        },
-        {
-          "key": "external-date-field",
-          "name": "<b>External Date Claimed Field</b><br><i>(optional)</i> Store timestamp of when the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> record was claimed<br><i>e.g.</i> <code>claimed_date</code> -- must be text or datetime field type",
-          "required": false,
-          "type": "text",
-          "default": "claimed_timestamp"
-        },
-        {
-          "key": "external-project-field",
-          "name": "<b>External Project Field</b><br><i>(optional)</i> Store the requesting <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project",
-              "required": false,
-              "type": "text",
-              "default": "claimed_by_project"
-          },
-        {
-          "key": "external-myphd-field",
-          "name": "<b>MyPHD Key Field name in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL KEY</span> project</b>",
-          "required": true,
-          "type": "text",
-          "default": "key_base64"
-        },
-          {
-              "key": "inbound-myphd-field",
-              "name": "<span class='text-lg badge badge-lg badge-success'>INBOUND: </span><b>MyPHD Key Field name in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b>",
-              "required": true,
-              "type": "field-list",
-              "default": "key_base64"
-          },
-          {
-              "key": "inbound-event",
-              "name": "<span class='text-lg badge badge-lg badge-success'>INBOUND: </span><b>Event in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current event",
-              "required": false,
-              "type": "event-list"
-          },
-        {
-          "key": "token-count-threshold",
-          "name": "<b>Token Count Threshold</b><br><i>(optional)</i> When the count of available tokens fall below this amount, an alert will be sent to the email entered in Error Email",
-          "required": false,
-          "type": "text",
-          "default": "25"
-        },
-          {
-              "key": "error-email-address",
-              "name": "<b>Error Email</b><br>(optional) In the event there is a configuration error or processing error, enter an email address to be notified. <br>This email will be notified when token count is below threshold.",
-              "required": false,
-              "type": "text"
-          },
-        {
-          "key": "inbound-mapping",
-          "name": "<b>Inbound Mapping Rule</b>",
-          "required": false,
-          "type": "sub_settings",
-          "repeatable": true,
-          "sub_settings": [
-            {
-              "key": "inbound-desc",
-              "name": "OPTIONALLY: You can copy values from the key database project record to fields in <span class='text-lg badge badge-lg badge-success'>THIS</span> project when a claim event occurs.  Make sure the field types are compatible.  Note it IS possible to copy FILES as well as text values.  Example fields you might want to copy are: key_base64 (text field), key (file field), claimed_timestamp (date field Y-M-D h:i:s)",
-              "required": false,
-              "type": "descriptive"
-            },
-            {
-              "key": "external-field-inbound",
-              "name": "<b>Field name in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL KEY</span> project</b>",
-              "required": false,
-              "type": "text"
-            },
-            {
-              "key": "this-field-inbound",
-              "name": "<b>Field name in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b>",
-              "required": false,
-              "type": "field-list"
-            },
-            {
-              "key": "this-event-inbound",
-              "name": "<b>Event in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current event",
-              "required": false,
-              "type": "event-list"
-            },
-            {
-              "key": "this-instance-inbound",
-              "name": "<b>Instance in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current instance",
-              "required": false,
-              "type": "text"
-            }
-          ]
-        },
-        {
-          "key": "disable-instance",
-          "name": "<b>Disable This Instance</b><br>So you can debug without having to delete all your configuration, you can simply check this box to prevent this instance of ProjMyPHD from evaluating on save.",
-          "required": false,
-          "type": "checkbox"
+            "name": "Jae Lee",
+            "email": "jael@stanford.edu",
+            "institution": "Stanford University"
         }
-      ]
+    ],
+    "permissions": [
+        "redcap_survey_acknowledgement_page",
+        "redcap_module_project_enable"
+    ],
+    "enable-every-page-hooks-on-system-pages": false,
+    "links": {
+        "project": [
+            {
+                "name": "Proj MyPHD Instructions",
+                "icon": "fas fa-question-circle",
+                "url": "instructions.php",
+                "show-header-and-footer": true
+            }
+        ],
+        "control-center": [
+        ]
     },
-    {
-      "key": "enable-project-debug-logging",
-      "name": "<b>Enable Debug Logging</b></h6><i> (Requires emLogger)</i>",
-      "required": false,
-      "super-users-only": true,
-      "type": "checkbox"
+    "no-auth-pages": [
+    ],
+    "project-settings": [
+        {
+            "key": "claim-form",
+            "name": "<b>Survey Form</b><br>This module will only evaluate the logic below when this survey form is completed",
+            "required": true,
+            "type": "form-list"
+        },
+        {
+            "key": "claim-logic",
+            "name": "<b>Attempt Claim Logic</b><br>If this statement evaluates as TRUE when the survey above is completed in <span class='text-lg badge badge-lg badge-success'>THIS</span> project, the defined key claim below will be executed.  Typically, you will use the value of the base 64 key in this project to prevent re-claiming a different key if the survey is somehow completed a second time.  In some case, you can get more advanced and use the <b>Inbound Mapping Rules</b> to add more logic.<br><i>e.g.</i> <code>[local_key_field] = ''</code>",
+            "required": true,
+            "type": "textarea"
+        },
+        {
+            "key": "external-project",
+            "name": "<b>MyPHD Key Database Project</b><br>This is a separate REDCap project that has records (e.g. keys) 'to be claimed'.  It must be classical.  Check out the README for example project definitions.",
+            "required": true,
+            "type": "project-id"
+        },
+        {
+            "key": "inbound-key-field",
+            "name": "<span class='text-lg badge badge-lg badge-success'>INBOUND: </span><b>MyPHD key field (text format) name in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b>",
+            "required": true,
+            "type": "field-list",
+            "default": "key_base64"
+        },
+        {
+            "key": "inbound-event",
+            "name": "<span class='text-lg badge badge-lg badge-success'>INBOUND: </span><b>Event in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current event",
+            "required": false,
+            "type": "event-list"
+        },
+        {
+            "key": "desc-instructions",
+            "name": "<hr>Assuming you are using the correct key database template, the following fields can typically be left to their default values.<hr>",
+            "required": false,
+            "type": "descriptive"
+        },
+        {
+            "key": "external-used-field",
+            "name": "<b>External Claimed By Record Field</b><br>Field in the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> key database project where this module will store the <span class='text-lg badge badge-lg badge-success'>THIS</span> project's record id when a claim occurs.</b><br><i>e.g.</i> <code>claimed_by_record</code> -- just the field name, no brackets or braces.",
+            "required": true,
+            "type": "text",
+            "default": "claimed_by_record"
+        },
+        {
+            "key": "external-logic",
+            "name": "<b>External Lookup Logic</b><br><i>(optional)</i> To limit which records in the external key database can be used you can add more logic here.  The syntax for this logic is custom to accommodate a mix of data from THIS project and the EXTERNAL projects' data.  For fields in the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project, use { } brackets instead of [ ] brackets.  You can refer to data from the current record in <span class='text-lg badge badge-lg badge-success'>THIS</span> project using normal branching and also use smart variables.<hr>Examples:<br><ul><li><code>{claimed_timestamp}=''</code> will find the first external record without a claimed_timestamp value.</li></ul>Check out the full documentation for more details and pay attention to quotes.",
+            "required": false,
+            "type": "textarea"
+        },
+        {
+            "key": "external-timestamp-field",
+            "name": "<b>External Timestamp Claimed Field</b><br><i>(optional)</i> Store timestamp of when the <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> record was claimed<br><i>e.g.</i> <code>claimed_date</code> -- must be text or Y-M-D H:i:s timestamp field type",
+            "required": false,
+            "type": "text",
+            "default": "claimed_timestamp"
+        },
+        {
+            "key": "external-project-field",
+            "name": "<b>External Project Field</b><br><i>(optional)</i> Store the requesting <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project",
+            "required": false,
+            "type": "text",
+            "default": "claimed_by_project"
+        },
+        {
+            "key": "external-key-field",
+            "name": "<b>MyPHD Key Field</b><br>Name of field in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL</span> project that contains the base64 key value which will be passed to the MyPHD App",
+            "required": true,
+            "type": "text",
+            "default": "key_base64"
+        },
+        {
+            "key": "token-count-threshold",
+            "name": "<b>Token Count Threshold</b><br><i>(optional)</i> When the count of available tokens fall below this amount, an alert will be sent to the email entered in Error Email",
+            "required": false,
+            "type": "text",
+            "default": "25"
+        },
+        {
+            "key": "error-email-address",
+            "name": "<b>Error Email</b><br>(optional) In the event there is a configuration error or processing error, enter an email address to be notified. <br>This email will be notified when token count is below threshold.",
+            "required": false,
+            "type": "text"
+        },
+        {
+            "key": "inbound-mapping",
+            "name": "<b>Inbound Mapping Rule</b>",
+            "required": false,
+            "type": "sub_settings",
+            "repeatable": true,
+            "sub_settings": [
+                {
+                    "key": "inbound-desc",
+                    "name": "OPTIONALLY: You can copy values from the key database project record to fields in <span class='text-lg badge badge-lg badge-success'>THIS</span> project when a claim event occurs.  Make sure the field types are compatible.  Note it IS possible to copy FILES as well as text values.  Example fields you might want to copy are: key_base64 (text field), key (file field), claimed_timestamp (date field Y-M-D h:i:s)",
+                    "required": false,
+                    "type": "descriptive"
+                },
+                {
+                    "key": "external-field-inbound",
+                    "name": "<b>Field name in <span class='text-lg badge badge-lg badge-danger'>EXTERNAL KEY</span> project</b>",
+                    "required": false,
+                    "type": "text"
+                },
+                {
+                    "key": "this-field-inbound",
+                    "name": "<b>Field name in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b>",
+                    "required": false,
+                    "type": "field-list"
+                },
+                {
+                    "key": "this-event-inbound",
+                    "name": "<b>Event in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current event",
+                    "required": false,
+                    "type": "event-list"
+                },
+                {
+                    "key": "this-instance-inbound",
+                    "name": "<b>Instance in <span class='text-lg badge badge-lg badge-success'>THIS</span> project</b><br>Leave blank for current instance",
+                    "required": false,
+                    "type": "text"
+                }
+            ]
+        },
+        {
+            "key": "enable-project-debug-logging",
+            "name": "<b>Enable Debug Logging</b></h6><i> (Requires emLogger)</i>",
+            "required": false,
+            "super-users-only": true,
+            "type": "checkbox"
+        }
+    ],
+    "system-settings": [
+        {
+            "key": "enable-system-debug-logging",
+            "name": "<b>Enable Debug Logging (system-wide)</b><i>(optional)</i> Requires installation and configuration of emLogger",
+            "required": false,
+            "type": "checkbox"
+        }
+    ],
+    "compatibility": {
+        "php-version-min": "",
+        "php-version-max": "",
+        "redcap-version-min": "",
+        "redcap-version-max": ""
     }
-  ],
-  "system-settings": [
-    {
-      "key": "enable-system-debug-logging",
-      "name": "<b>Enable Debug Logging (system-wide)</b><i>(optional)</i> Requires installation and configuration of emLogger",
-      "required": false,
-      "type": "checkbox"
-    }
-  ],
-  "compatibility": {
-    "php-version-min": "",
-    "php-version-max": "",
-    "redcap-version-min": "",
-    "redcap-version-max": ""
-  }
 }
