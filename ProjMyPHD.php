@@ -221,7 +221,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             }
 
             // Copy the key from the external record to this record
-            $local_record_data[$record][$this->inbound_event][$this->inbound_key_field] = $ext_record[$this->ext_key_field];
+            $update_local_data[$record][$this->inbound_event][$this->inbound_key_field] = $ext_record[$this->ext_key_field];
 
             // Inbound Mapping (SUPPORTS FILES)
             $inbound_mapping = $this->getSubSettings('inbound-mapping');
@@ -259,6 +259,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
                 // Determine type of field in extProject
                 $ext_element_type = $extProj->metadata[$ext_field_inbound]['element_type'];
 
+                // Set the value for the inbound field (copying file if necessary)
                 if ($ext_element_type == "file") {
                     if($Proj->metadata[$local_field_inbound]['element_type'] !== 'file') {
                         // local filetype isn't file
@@ -268,13 +269,13 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
                     // We have a file - let's copy it
                     $edocId = $ext_record[$ext_field_inbound];
-                    $newEdocId = REDCap::copyFile($edocId, $project_id);
-                    $local_record_data[$record][$local_event_inbound][$local_field_inbound] = $newEdocId;
-                    $this->emDebug("$local_field_inbound is a file - copied $edocId to $newEdocId");
+                    $value = REDCap::copyFile($edocId, $project_id);
+                    $this->emDebug("$local_field_inbound is a file - copied $edocId to $value");
                 } else {
                     // Just copy the data from ext project to here as-is without type checking
-                    $local_record_data[$record][$local_event_inbound][$local_field_inbound] = $ext_record[$ext_field_inbound];
+                    $value = $ext_record[$ext_field_inbound];
                 }
+                $update_local_data[$record][$local_event_inbound][$local_field_inbound] = $value;
             }
 
             // Update External Project
@@ -289,7 +290,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             $params = [
                 0 => $project_id,
                 1 => 'array',
-                2 => $local_record_data,
+                2 => $update_local_data,
                 3 => 'normal',
                 4 => 'YMD',
                 5 => 'flat',
