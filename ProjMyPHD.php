@@ -17,12 +17,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
     public $instances;
     public $errors = [];
 
-    // public $project_id;
-    // public $record;
-    // public $event_id;
-    // public $repeat_instance;
-    public $Proj;
-
     private $claim_form;
     private $claim_logic;
     private $ext_project;
@@ -140,8 +134,22 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             }
             $this->emDebug("Obtained Lock: $this->lock_name");
 
+
             // Parse the 'special' logic for the external project
-            $ext_logic = $this->parseExternalLogic($this->ext_logic_raw, $local_record_data);
+            // Prepend events and validate logic format
+            if ($Proj->longitudinal) {
+                $logic = LogicTester::logicPrependEventName($this->ext_logic_raw, $Proj->getUniqueEventNames($event_id), $Proj);
+                // $this->emDebug("Prepending event names: $logic");
+            }
+
+            $logic = Piping::replaceVariablesInLabel($logic, $record, $event_id, $repeat_instance,
+                $local_record_data, false, $project_id, false);
+            // $this->emDebug("Post-replaceVariablesInLabel logic: $logic");
+
+            // Convert {} to [] for destination project
+            $logic = preg_replace( [ '/\{/', '/\}/' ], [ '[', ']' ], $logic);
+            $this->emDebug("Post-convert logic: $logic");
+            $ext_logic = $logic;
 
             // Get a record from the external project
             $params = [
@@ -286,25 +294,11 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
             }
 
             // Save to current project -- had to use record method to include file id...
-            // TODO: If the records object changes, this part is fragile and could be the source of future failures
             $params = [
-                0 => $project_id,
-                1 => 'array',
-                2 => $update_local_data,
-                3 => 'normal',
-                4 => 'YMD',
-                5 => 'flat',
-                6 => null,
-                7 => true,
-                8 => true,
-                9 => true,
-                10 => false,
-                11 => true,
-                12 => [],
-                13 => false,
-                14 => false // THIS IS WHAT WE NEED TO OVERRIDE FOR FILES TO BE 'SAVABLE'
+                'data'=>$update_local_data,
+                'skipFileUploadFields'=>false
             ];
-            $q = call_user_func_array(array("\Records", "saveData"), $params);
+            $q = \REDCap::saveData($params);
 
             if (!empty($q['errors'])) {
                 throw New InvalidInstanceException("Errors during local save of record $record : " . json_encode($q['errors']));
@@ -388,94 +382,6 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 
 
     /**
-     * Returns true or false
-     * @param $instance
-     * @return bool
-     * @throws \Exception
-     */
-    public function processInstance($instance) {
-        /*
-            Array
-            (
-                [0] => Array
-                    (
-                        [claim-logic] => [random_group_1] <> ''
-                        [external-project] => 16
-                        [external-logic] => {used_by} = ''
-                        [external-used-field] => used_by
-                        [external-date-field] => used_date
-                        [outbound-mapping] => Array
-                            (
-                                [0] => Array
-                                    (
-                                        [this-field-outbound] => sex
-                                        [this-event-outbound] =>
-                                        [this-instance-outbound] =>
-                                        [external-field-outbound] => inbound_1
-                                    )
-                            )
-                        [inbound-mapping] => Array
-                            (
-                                [0] => Array
-                                    (
-                                        [external-field-inbound] => code
-                                        [this-field-inbound] => random_alias
-                                        [this-event-inbound] =>
-                                        [this-instance-inbound] =>
-                                    )
-
-                                [1] => Array
-                                    (
-                                        [external-field-inbound] => record_id
-                                        [this-field-inbound] => random_id
-                                        [this-event-inbound] => 44
-                                        [this-instance-inbound] =>
-                                    )
-                            )
-                        [disable-instance] =>
-                    )
-            )
-         */
-
-	}
-
-
-    /**
-     * This module does a double-parsing to allow a mix of local smartvars into the query that is applied on the
-     * external project.
-     * i.e.  {claimed_date}='' and {dag} = '[record-dag-name]'
-     * would first be piped into:
-     * {claimed_date}='' and {dag} = 'dag-group-a'
-     * and then changed into:
-     * [claimed_date]='' and [dag] = 'dag-group-a'
-     * @param $logic
-     * @return string|string[]|null
-     */
-	private function parseExternalLogic($logic, $record_data) {
-        $this->emDebug("Starting with logic: $logic");
-
-        // Pipe any special piping tags in THIS project
-        $user = defined("USERID") && !empty(USERID) ? USERID : NULL;
-
-        if ($this->Proj->longitudinal) {
-            $logic = LogicTester::logicPrependEventName($logic, $this->Proj->getUniqueEventNames($this->event_id), $this->Proj);
-            // $this->emDebug("Prepending event names: $logic");
-        }
-
-        $logic = Piping::replaceVariablesInLabel($logic, $this->record, $this->event_id, $this->repeat_instance,
-            $record_data, false, $this->project_id, false);
-        // $this->emDebug("Post-replaceVariablesInLabel logic: $logic");
-
-        // $logic = Piping::pipeSpecialTags($logic, $this->project_id, $this->record, $this->event_id, $this->repeat_instance, $user, true);
-        // $this->emDebug("Post-piping logic: $logic");
-
-        // Convert {} to [] for destination project
-        $logic = preg_replace( [ '/\{/', '/\}/' ], [ '[', ']' ], $logic);
-        $this->emDebug("Post-convert logic: $logic");
-        return $logic;
-    }
-
-    /**
      * Notify an administrator when the lookup project is not returning results
      * @param $msg
      */
@@ -483,7 +389,7 @@ class ProjMyPHD extends \ExternalModules\AbstractExternalModule {
 	    $email = $this->getProjectSetting('error-email-address');
 	    if (!empty($email)) {
 	        global $project_contact_email;
-	        $subject = "REDCap EM Notification for " . $this->getModuleName() . " in project " . $this->project_id;
+	        $subject = "REDCap EM Notification for " . $this->getModuleName() . " in project " . $this->getProjectId();
             REDCap::email($email,$project_contact_email,$subject,$msg);
         }
     }

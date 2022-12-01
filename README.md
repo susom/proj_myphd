@@ -23,9 +23,3 @@ This module supports two fancy features:
     [used_by] = '' and [site] = 'daggroupa'
     ```
 
-### emLock
-* A second interesting feature is driven by the need to ensure that claiming of codes is atomic.  We have had cases where under high utilization two different php sessions might try to claim the same, next available record.  
-
-With the latest enhancements, you can now incorporate smart-variables like DAG name into the lookup logic.
-
-Good luck - and reach out to the consortium if you are having setup difficulties.
